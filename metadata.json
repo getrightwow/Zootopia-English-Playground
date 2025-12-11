@@ -1,0 +1,7 @@
+{
+  "name": "Zootopia Primary English",
+  "description": "A fun, Zootopia-themed English learning app mastering Primary School (PEP) vocabulary with flashcards, spelling, and pronunciation practice powered by Gemini.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
