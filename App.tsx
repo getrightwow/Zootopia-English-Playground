@@ -24,16 +24,39 @@ const App: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mode, setMode] = useState<AppMode>(AppMode.FLASHCARD);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Initial load or topic change
   const loadWords = async (topicId: string) => {
-    setLoading(true);
-    setSelectedTopic(topicId);
-    setWords([]); // Clear previous
-    const newWords = await generateVocabulary(TOPICS.find(t => t.id === topicId)?.label || 'General');
-    setWords(newWords);
-    setCurrentIndex(0);
+    try {
+      setLoading(true);
+      setError(null);
+      setSelectedTopic(topicId);
+      setWords([]); // Clear previous
+      
+      const topicLabel = TOPICS.find(t => t.id === topicId)?.label || 'General';
+      const newWords = await generateVocabulary(topicLabel);
+      
+      if (newWords.length === 0) {
+        setError("没有找到单词，请稍后再试。");
+      }
+      setWords(newWords);
+      setCurrentIndex(0);
+    } catch (err) {
+      console.error("Failed to load words", err);
+      setError("加载失败，请检查网络或刷新页面。");
+      setWords([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goHome = () => {
     setLoading(false);
+    setSelectedTopic(null);
+    setWords([]);
+    setError(null);
+    setMode(AppMode.FLASHCARD);
   };
 
   const handleNext = () => {
@@ -86,6 +109,16 @@ const App: React.FC = () => {
       );
     }
 
+    if (error) {
+       return (
+        <div className="text-center bg-white p-8 rounded-3xl shadow-xl">
+           <div className="text-4xl mb-4">🦊</div>
+           <p className="text-red-500 font-bold mb-4">{error}</p>
+           <Button onClick={() => loadWords(selectedTopic)}>重试</Button>
+        </div>
+       );
+    }
+
     if (words.length === 0) return null;
 
     const currentWord = words[currentIndex];
@@ -131,7 +164,7 @@ const App: React.FC = () => {
         <header className="flex flex-col sm:flex-row items-center justify-between max-w-4xl mx-auto mb-6 py-2 gap-4">
             <div 
                 className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => setSelectedTopic(null)}
+                onClick={goHome}
             >
                 {/* Logo Area */}
                 <div className="bg-gradient-to-tr from-blue-600 to-blue-400 text-white p-3 rounded-2xl shadow-lg border-b-4 border-blue-800">

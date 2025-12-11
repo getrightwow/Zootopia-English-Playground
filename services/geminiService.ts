@@ -1,11 +1,60 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { WordData, TtsAccent } from "../types";
 
+// Helper to safely get API Key without crashing
+const getApiKey = () => {
+  try {
+    // Check various locations where env might be injected
+    const key = process?.env?.API_KEY || (window as any).process?.env?.API_KEY;
+    return key && key.length > 0 ? key : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const FALLBACK_VOCABULARY: Record<string, WordData[]> = {
+  'Animals (动物)': [
+    { word: "panda", translation: "熊猫", example: "The panda is eating bamboo.", phonetic: "/ˈpændə/" },
+    { word: "tiger", translation: "老虎", example: "The tiger is very strong.", phonetic: "/ˈtaɪɡər/" },
+    { word: "rabbit", translation: "兔子", example: "The rabbit has long ears.", phonetic: "/ˈræbɪt/" },
+    { word: "monkey", translation: "猴子", example: "The monkey likes bananas.", phonetic: "/ˈmʌŋki/" },
+    { word: "elephant", translation: "大象", example: "The elephant has a long nose.", phonetic: "/ˈelɪfənt/" }
+  ],
+  'Food (食物)': [
+    { word: "hamburger", translation: "汉堡包", example: "I want to eat a hamburger.", phonetic: "/ˈhæmbɜːɡər/" },
+    { word: "apple", translation: "苹果", example: "An apple a day keeps the doctor away.", phonetic: "/ˈæpl/" },
+    { word: "milk", translation: "牛奶", example: "I drink milk every morning.", phonetic: "/mɪlk/" },
+    { word: "cake", translation: "蛋糕", example: "Happy birthday! Here is your cake.", phonetic: "/keɪk/" },
+    { word: "rice", translation: "米饭", example: "We eat rice for dinner.", phonetic: "/raɪs/" }
+  ],
+  'Family (家庭)': [
+    { word: "mother", translation: "妈妈", example: "My mother loves me.", phonetic: "/ˈmʌðər/" },
+    { word: "father", translation: "爸爸", example: "My father is working.", phonetic: "/ˈfɑːðər/" },
+    { word: "sister", translation: "姐妹", example: "I play with my sister.", phonetic: "/ˈsɪstər/" },
+    { word: "brother", translation: "兄弟", example: "My brother is tall.", phonetic: "/ˈbrʌðər/" },
+    { word: "baby", translation: "婴儿", example: "The baby is sleeping.", phonetic: "/ˈbeɪbi/" }
+  ]
+};
+
+const DEFAULT_FALLBACK: WordData[] = [
+    { word: "hello", translation: "你好", example: "Hello! How are you?", phonetic: "/həˈləʊ/" },
+    { word: "friend", translation: "朋友", example: "You are my best friend.", phonetic: "/frend/" },
+    { word: "happy", translation: "快乐", example: "I am very happy today.", phonetic: "/ˈhæpi/" }
+];
+
 /**
  * Generates a list of Primary School vocabulary words based on a topic.
  */
 export const generateVocabulary = async (topic: string): Promise<WordData[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  
+  // Immediate fallback if no key is present to prevent hanging
+  if (!apiKey) {
+    console.warn("No API Key found. Using fallback data for demo.");
+    return FALLBACK_VOCABULARY[topic] || DEFAULT_FALLBACK;
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = `Generate 5 English vocabulary words from the Chinese Primary School English curriculum (PEP / Ren Jiao Ban) related to the topic "${topic}". 
   For each word, provide:
   1. The word itself (simple, suitable for primary students).
@@ -40,15 +89,10 @@ export const generateVocabulary = async (topic: string): Promise<WordData[]> => 
     if (response.text) {
       return JSON.parse(response.text) as WordData[];
     }
-    return [];
+    return FALLBACK_VOCABULARY[topic] || DEFAULT_FALLBACK;
   } catch (error) {
     console.error("Error generating vocabulary:", error);
-    // Return a fallback set if API fails to avoid app crash
-    return [
-      { word: "apple", translation: "苹果", example: "I like to eat a red apple.", phonetic: "/ˈæpl/" },
-      { word: "dog", translation: "狗", example: "The dog is playing in the park.", phonetic: "/dɒɡ/" },
-      { word: "book", translation: "书", example: "She is reading a book.", phonetic: "/bʊk/" },
-    ];
+    return FALLBACK_VOCABULARY[topic] || DEFAULT_FALLBACK;
   }
 };
 
@@ -56,8 +100,11 @@ export const generateVocabulary = async (topic: string): Promise<WordData[]> => 
  * Generates raw PCM audio data for a word using Gemini TTS.
  */
 export const generateAudio = async (text: string, accent: TtsAccent): Promise<Uint8Array | null> => {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     // We guide the accent via the prompt since the model is multilingual/capable of nuance
     const promptText = accent === TtsAccent.UK 
       ? `Say the following word clearly with a British accent suitable for children: ${text}`
@@ -134,8 +181,18 @@ export const playRawAudio = async (audioData: Uint8Array) => {
  * Grades the pronunciation by comparing spoken text to target word.
  */
 export const gradePronunciation = async (targetWord: string, spokenText: string): Promise<{ score: number; feedback: string }> => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+      // Fake grading for demo
+      const isCorrect = spokenText.toLowerCase().includes(targetWord.toLowerCase());
+      return {
+          score: isCorrect ? 95 : 40,
+          feedback: isCorrect ? "非常好！发音很标准！" : "再试一次，注意看单词的发音哦。"
+      };
+  }
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const prompt = `
     I am an English teacher for primary school students. 
     Target word: "${targetWord}"
