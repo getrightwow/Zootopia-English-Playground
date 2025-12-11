@@ -1,13 +1,11 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { WordData, TtsAccent } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 /**
  * Generates a list of Primary School vocabulary words based on a topic.
  */
 export const generateVocabulary = async (topic: string): Promise<WordData[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Generate 5 English vocabulary words from the Chinese Primary School English curriculum (PEP / Ren Jiao Ban) related to the topic "${topic}". 
   For each word, provide:
   1. The word itself (simple, suitable for primary students).
@@ -59,6 +57,7 @@ export const generateVocabulary = async (topic: string): Promise<WordData[]> => 
  */
 export const generateAudio = async (text: string, accent: TtsAccent): Promise<Uint8Array | null> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     // We guide the accent via the prompt since the model is multilingual/capable of nuance
     const promptText = accent === TtsAccent.UK 
       ? `Say the following word clearly with a British accent suitable for children: ${text}`
@@ -136,6 +135,7 @@ export const playRawAudio = async (audioData: Uint8Array) => {
  */
 export const gradePronunciation = async (targetWord: string, spokenText: string): Promise<{ score: number; feedback: string }> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
     I am an English teacher for primary school students. 
     Target word: "${targetWord}"
