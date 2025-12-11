@@ -49,20 +49,30 @@ export const SpellingMode: React.FC<SpellingModeProps> = ({ word, onCorrect }) =
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            setStatus('idle');
-          }}
-          className={`w-full p-4 rounded-xl border-2 text-center text-xl font-bold outline-none transition-colors
-            ${status === 'correct' ? 'border-green-500 bg-green-50 text-green-700' : 
-              status === 'incorrect' ? 'border-red-500 bg-red-50 text-red-700' : 
-              'border-gray-300 focus:border-blue-500'}`}
-          placeholder="在此输入单词..."
-          autoFocus
-        />
+        <div className="relative w-full">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setStatus('idle');
+              }}
+              className={`w-full p-4 rounded-xl border-2 text-center text-xl font-bold outline-none transition-all duration-500 transform
+                ${status === 'correct' 
+                    ? 'border-green-500 bg-green-50 text-green-700 ring-4 ring-green-200 shadow-[0_0_25px_rgba(74,222,128,0.6)] scale-105 z-10' 
+                    : status === 'incorrect' 
+                        ? 'border-red-500 bg-red-50 text-red-700' 
+                        : 'border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'}`}
+              placeholder="在此输入单词..."
+              autoFocus
+              disabled={status === 'correct'}
+            />
+            {status === 'correct' && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-2xl animate-bounce">
+                    ✅
+                </div>
+            )}
+        </div>
         
         <div className="flex gap-2">
             <Button 
@@ -70,10 +80,11 @@ export const SpellingMode: React.FC<SpellingModeProps> = ({ word, onCorrect }) =
                 variant="secondary" 
                 className="flex-1 bg-yellow-400 hover:bg-yellow-300 border-yellow-600"
                 onClick={() => setHintIndex(prev => Math.min(prev + 1, word.word.length))}
+                disabled={status === 'correct'}
             >
                 💡 提示
             </Button>
-            <Button type="submit" className="flex-[2]">
+            <Button type="submit" className="flex-[2]" disabled={status === 'correct'}>
                 ✅ 检查
             </Button>
         </div>
