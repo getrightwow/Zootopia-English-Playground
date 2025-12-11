@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WordData, TtsAccent } from '../types';
-import { generateAudio, playRawAudio } from '../services/geminiService';
+import { playTextToSpeech } from '../services/geminiService';
 import { Button } from './Button';
 
 interface FlashcardModeProps {
@@ -22,10 +22,7 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({ words, onNext, onP
 
     setLoadingAudio(accent);
     try {
-      const audioData = await generateAudio(currentWord.word, accent);
-      if (audioData) {
-        await playRawAudio(audioData);
-      }
+      await playTextToSpeech(currentWord.word, accent);
     } catch (err) {
       console.error("Audio playback failed", err);
     } finally {
@@ -58,7 +55,7 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({ words, onNext, onP
                 onClick={(e) => playAudio(TtsAccent.US, e)}
                 disabled={loadingAudio === TtsAccent.US}
               >
-                {loadingAudio === TtsAccent.US ? '加载中...' : '🇺🇸 美音'}
+                {loadingAudio === TtsAccent.US ? '...' : '🇺🇸 美音'}
               </Button>
               <Button 
                 variant="secondary" 
@@ -66,7 +63,7 @@ export const FlashcardMode: React.FC<FlashcardModeProps> = ({ words, onNext, onP
                 onClick={(e) => playAudio(TtsAccent.UK, e)}
                 disabled={loadingAudio === TtsAccent.UK}
               >
-                 {loadingAudio === TtsAccent.UK ? '加载中...' : '🇬🇧 英音'}
+                 {loadingAudio === TtsAccent.UK ? '...' : '🇬🇧 英音'}
               </Button>
             </div>
             <p className="text-gray-400 text-xs mt-4">点击卡片查看中文</p>

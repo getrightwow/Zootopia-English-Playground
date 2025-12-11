@@ -33,6 +33,13 @@ const FALLBACK_VOCABULARY: Record<string, WordData[]> = {
     { word: "sister", translation: "姐妹", example: "I play with my sister.", phonetic: "/ˈsɪstər/" },
     { word: "brother", translation: "兄弟", example: "My brother is tall.", phonetic: "/ˈbrʌðər/" },
     { word: "baby", translation: "婴儿", example: "The baby is sleeping.", phonetic: "/ˈbeɪbi/" }
+  ],
+  'School (学校)': [
+    { word: "teacher", translation: "老师", example: "My teacher is very kind.", phonetic: "/ˈtiːtʃər/" },
+    { word: "book", translation: "书", example: "I read a book every day.", phonetic: "/bʊk/" },
+    { word: "pencil", translation: "铅笔", example: "I write with a pencil.", phonetic: "/ˈpensl/" },
+    { word: "schoolbag", translation: "书包", example: "My schoolbag is blue.", phonetic: "/ˈskuːlbæɡ/" },
+    { word: "desk", translation: "课桌", example: "My desk is clean.", phonetic: "/desk/" }
   ]
 };
 
@@ -99,18 +106,16 @@ export const generateVocabulary = async (topic: string): Promise<WordData[]> => 
 /**
  * Generates raw PCM audio data for a word using Gemini TTS.
  */
-export const generateAudio = async (text: string, accent: TtsAccent): Promise<Uint8Array | null> => {
+const generateAudio = async (text: string, accent: TtsAccent): Promise<Uint8Array | null> => {
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    // We guide the accent via the prompt since the model is multilingual/capable of nuance
     const promptText = accent === TtsAccent.UK 
       ? `Say the following word clearly with a British accent suitable for children: ${text}`
       : `Say the following word clearly with an American accent suitable for children: ${text}`;
 
-    // Select voice based on accent for variety (Puck for UK-ish, Kore for US)
     const voiceName = accent === TtsAccent.UK ? 'Puck' : 'Kore';
 
     const response = await ai.models.generateContent({
@@ -147,17 +152,20 @@ export const generateAudio = async (text: string, accent: TtsAccent): Promise<Ui
 /**
  * Plays raw PCM audio data (1 channel, 24kHz, Int16).
  */
-export const playRawAudio = async (audioData: Uint8Array) => {
+const playRawAudio = async (audioData: Uint8Array) => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     const audioContext = new AudioContextClass({ sampleRate: 24000 });
     
-    // Gemini TTS returns raw PCM: 1 channel, 24000Hz, Int16
+    // Resume context if suspended (browser policy)
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+    
     const dataInt16 = new Int16Array(audioData.buffer);
     const buffer = audioContext.createBuffer(1, dataInt16.length, 24000);
     const channelData = buffer.getChannelData(0);
     
-    // Convert Int16 to Float32 [-1.0, 1.0]
     for (let i = 0; i < dataInt16.length; i++) {
         channelData[i] = dataInt16[i] / 32768.0;
     }
@@ -166,7 +174,6 @@ export const playRawAudio = async (audioData: Uint8Array) => {
     source.buffer = buffer;
     source.connect(audioContext.destination);
     
-    // Clean up context after playback to prevent running out of contexts
     source.onended = () => {
       audioContext.close();
     };
@@ -178,16 +185,61 @@ export const playRawAudio = async (audioData: Uint8Array) => {
 };
 
 /**
- * Grades the pronunciation by comparing spoken text to target word.
+ * Main function to play text-to-speech. 
+ * Tries Gemini first, falls back to Browser SpeechSynthesis if no key or error.
+ */
+export const playTextToSpeech = async (text: string, accent: TtsAccent) => {
+    let played = false;
+    const apiKey = getApiKey();
+
+    // 1. Try Gemini API if Key exists
+    if (apiKey) {
+        try {
+            const audioData = await generateAudio(text, accent);
+            if (audioData) {
+                await playRawAudio(audioData);
+                played = true;
+            }
+        } catch (e) {
+            console.warn("Gemini TTS failed, attempting browser fallback.", e);
+        }
+    }
+
+    // 2. Fallback to Browser SpeechSynthesis
+    if (!played) {
+        console.log("Using Browser TTS Fallback");
+        if ('speechSynthesis' in window) {
+            // Cancel any current speech
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.8; // Slower for kids
+            
+            // Attempt to set accent
+            utterance.lang = accent === TtsAccent.UK ? 'en-GB' : 'en-US';
+            
+            window.speechSynthesis.speak(utterance);
+        } else {
+            console.error("Browser does not support TTS.");
+        }
+    }
+};
+
+/**
+ * Grades the pronunciation.
  */
 export const gradePronunciation = async (targetWord: string, spokenText: string): Promise<{ score: number; feedback: string }> => {
   const apiKey = getApiKey();
+  
+  // Robust Fallback Grading for Demo
   if (!apiKey) {
-      // Fake grading for demo
-      const isCorrect = spokenText.toLowerCase().includes(targetWord.toLowerCase());
+      const cleanTarget = targetWord.toLowerCase().trim();
+      const cleanSpoken = spokenText.toLowerCase().trim();
+      const isCorrect = cleanSpoken.includes(cleanTarget);
+      
       return {
-          score: isCorrect ? 95 : 40,
-          feedback: isCorrect ? "非常好！发音很标准！" : "再试一次，注意看单词的发音哦。"
+          score: isCorrect ? 100 : 40,
+          feedback: isCorrect ? "非常好！完全正确！(演示模式)" : "再试一次，注意发音哦。(演示模式)"
       };
   }
 

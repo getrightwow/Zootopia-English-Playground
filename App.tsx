@@ -161,7 +161,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-400 via-blue-300 to-orange-200 p-4 font-sans select-none overflow-x-hidden">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row items-center justify-between max-w-4xl mx-auto mb-6 py-2 gap-4">
+        <header className="flex flex-col sm:flex-row items-center justify-between max-w-4xl mx-auto mb-6 py-2 gap-4 relative z-50">
             <div 
                 className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={goHome}
@@ -176,7 +176,7 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            {selectedTopic && words.length > 0 && (
+            {selectedTopic && words.length > 0 && !loading && (
                 <div className="flex bg-white/90 rounded-2xl p-1.5 shadow-xl gap-1">
                     <button 
                         onClick={() => setMode(AppMode.FLASHCARD)}
@@ -201,7 +201,7 @@ const App: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <main className="flex flex-col items-center justify-center min-h-[65vh] max-w-4xl mx-auto w-full">
+        <main className="flex flex-col items-center justify-center min-h-[65vh] max-w-4xl mx-auto w-full relative z-10">
             {renderContent()}
         </main>
         
